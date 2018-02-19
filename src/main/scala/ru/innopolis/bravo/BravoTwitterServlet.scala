@@ -16,8 +16,10 @@ import org.json4s.jackson.JsonMethods._
 import org.json4s.JsonDSL._
 
 
-case class User(id:Integer, email:String, nickname:String, password:String)
-case class Tweet(id:Integer, text:String, authorId:Integer, submissionTime:Integer)
+import TweetData._
+
+//case class User(id:Integer, email:String, nickname:String, password:String)
+//case class Tweet(id:Integer, text:String, authorId:Integer, submissionTime:Integer)
 
 class BravoTwitterServlet extends ScalatraServlet with MethodOverride with JacksonJsonSupport {
 
@@ -48,10 +50,11 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case (true, Success(t)) if !(blacklist contains token) => Success(t)
             case _ => Failure(new IllegalArgumentException("Token is not valid"))
     }
-    
+
+    // Obsolete, moved to DataManager
     /** Checks if email is already registered **/
     def isEmailCorrect(email: String): Boolean = {
-        true
+        !DataManager.EmailExists(email)
     }
     
     /** Gets the user with the given nickname from the database **/
@@ -60,7 +63,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
         return Some(new User(0, "m@m.ru", "nick", "123456"))
         // or None if not exists
     }
-    
+
+    // Obsolete
     /** Generates a new ID for a new user **/
     def generateNewId() = 5
     
@@ -75,10 +79,12 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
         val nickname = parsedBody \ "nickname" \\ classOf[JString]
         val password = parsedBody \ "password" \\ classOf[JString]
         (email.lift(0), nickname.lift(0), password.lift(0)) match {
-            case (email: Some[String], nickname: Some[String], password: Some[String]) if isEmailCorrect(email.get) && getUserByNickname(nickname.get) == None && !password.get.isEmpty() => {
-                println(new String(s"Added new user '${nickname.get}' with password '${password.get}'"))
-                val user = new User(generateNewId(), email.get, nickname.get, password.get)
-                // TODO: add user to a database
+            case (email: Some[String], nickname: Some[String], password: Some[String]) if !password.get.isEmpty() => {
+
+//                val user = new User(generateNewId(), email.get, nickname.get, password.get)
+                if(DataManager.AddUser(email.get, nickname.get, password.get)) {
+                    println(new String(s"Added new user '${nickname.get}' with password '${password.get}'"))
+                }
                 Created()
             }
             case _ => BadRequest()
@@ -146,7 +152,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: Integer, nickname: String, email: String) => {
                 // Parse parseBody, create a new tweet
-            
+                val tweetText = request.body
+                DataManager.AddTweet(tweetText, userId)
                 
                 Created()
             }
