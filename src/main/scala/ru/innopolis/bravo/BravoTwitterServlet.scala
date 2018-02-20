@@ -167,7 +167,7 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
     get("/tweet/:id/?") {
         val id = params.getOrElse("id", halt(400))
         // TODO
-        val sampleTweet = new Tweet(3, "Some text", 0, 19376223)
+        val sampleTweet = DataManager.tweets(id)
         // This would convert case class to JSON. The same with lists - just pass it to write()
         Ok(write(List(sampleTweet, sampleTweet)))
         // or BadRequest()
@@ -199,8 +199,9 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
         getAuthInfo(request.getHeader("Authorization")) match {
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
-                val tweetId = params.getOrElse("id", halt(400))
+                val tweetId = params.getOrElse("id", halt(400)).toInt
                 // TODO: remove tweet
+                DataManager.tweets.-=(tweetId)
                 
             }
         }

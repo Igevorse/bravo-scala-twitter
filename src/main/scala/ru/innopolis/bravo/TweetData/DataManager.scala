@@ -30,6 +30,11 @@ object DataManager {
     return true;
   }
 
+  def RemoveTwit : Boolean = {
+
+    return true
+  }
+
 
 
   def NicknameExists(nick : String) : Boolean = {
