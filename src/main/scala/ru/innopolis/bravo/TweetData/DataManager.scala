@@ -14,14 +14,14 @@ object DataManager {
   }
 
   def AddUser(email:String, nickname:String, password:String): Boolean = {
-    if(!NicknameExists(nickname) && !EmailExists(email))
+    if(NicknameExists(nickname) || EmailExists(email))
       return false
 
     val id = users.size
     val user : User = new User(id, email, nickname, password)
     users += id -> user
 
-    return true
+    true
   }
 
   def AddTweet(text:String, authorId:Int): Boolean = {
