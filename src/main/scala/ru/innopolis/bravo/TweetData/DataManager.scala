@@ -9,7 +9,7 @@ object DataManager {
   var tweets = scala.collection.mutable.Map[Int, Tweet]()
 
 
-  def getUserByNickname(nickname: String) = {
+  def getUserByNickname(nickname: String) : Option[User] = {
     users.values.find(_.nickname == nickname)
   }
 

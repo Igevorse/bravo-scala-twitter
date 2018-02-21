@@ -88,10 +88,14 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
                 DataManager.getUserByNickname(nickname.get) match {
                     case Some(user) => {
                         // Generate a JWT token
-                        val claimText = ("nickname" -> user.nickname)  ~ ("email" -> user.email)~("id" -> scala.Int.unbox(new java.lang.Integer(user.id)) )
-                        val claim = JwtClaim(compact(render(claimText))).by(jwtIssuedBy).expiresIn(jwtExpiresIn).startsNow.issuedNow
-                        val token = Jwt.encode(JwtHeader(jwtAlgo, "JWT"), claim, jwtKey)
-                        Ok("""{"token": """"+token+""""}""")
+                        if(user.password == password.get) {
+                            val claimText = ("nickname" -> user.nickname) ~ ("email" -> user.email) ~ ("id" -> scala.Int.unbox(new java.lang.Integer(user.id)))
+                            val claim = JwtClaim(compact(render(claimText))).by(jwtIssuedBy).expiresIn(jwtExpiresIn).startsNow.issuedNow
+                            val token = Jwt.encode(JwtHeader(jwtAlgo, "JWT"), claim, jwtKey)
+                            Ok("""{"token": """" + token +""""}""")
+                        }
+                        else
+                            BadRequest()
                     }
                     case _ => BadRequest()
                 }
@@ -134,12 +138,17 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
     put("/tweet/?") {
         getAuthInfo(request.getHeader("Authorization")) match {
             case ar: ActionResult => ar
-            case (userId: Integer, nickname: String, email: String) => {
+            case (userId: BigInt, nickname: String, email: String) => {
                 // Parse parseBody, create a new tweet
-                val tweetText = (parsedBody \ "text").extract[String]
-                DataManager.AddTweet(tweetText, userId)
-                
-                Created()
+                val tweetText = parsedBody \ "text" \\ classOf[JString]
+
+                (tweetText.lift(0)) match {
+                    case (tweetText: Some[String]) => {
+                        DataManager.AddTweet(tweetText.get, userId.toInt)
+                        Created()
+                    }
+                    case _ => BadRequest()
+                }
             }
         }
     }
