@@ -1,6 +1,6 @@
 package ru.innopolis.bravo.TweetData
 
-class User(val id:Integer, var email:String, var nickname:String, val password:String) {
+class User(val id:Integer, var email:String, var nickname:String, val passwordHash:String) {
   var tweetIDs = scala.collection.mutable.Set[Int]()
   var subscriptionsIDs = scala.collection.mutable.Set[Int]()
 
