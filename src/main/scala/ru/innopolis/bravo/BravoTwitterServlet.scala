@@ -15,14 +15,9 @@ import pdi.jwt.{Jwt, JwtJson4s, JwtHeader, JwtClaim, JwtAlgorithm}
 import org.json4s.jackson.JsonMethods._
 import org.json4s.JsonDSL._
 
-
 import TweetData._
 
-//case class User(id:Integer, email:String, nickname:String, password:String)
-//case class Tweet(id:Integer, text:String, authorId:Integer, submissionTime:Integer)
-
 class BravoTwitterServlet extends ScalatraServlet with MethodOverride with JacksonJsonSupport {
-
     val jwtKey = "secretKey"
     val jwtAlgo = JwtAlgorithm.HS256
     val jwtExpiresIn = 3600 // seconds
@@ -89,7 +84,7 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
                 DataManager.getUserByNickname(nickname.get) match {
                     case Some(user) => {
                         // Generate a JWT token
-                        if(PasswordHash.validatePassword(user.passwordHash, PasswordHash.createHash(password.get))) {
+                        if(PasswordHash.validatePassword(password.get, user.passwordHash)) {
                             val claimText = ("nickname" -> user.nickname) ~ ("email" -> user.email) ~ ("id" -> scala.Int.unbox(new java.lang.Integer(user.id)))
                             val claim = JwtClaim(compact(render(claimText))).by(jwtIssuedBy).expiresIn(jwtExpiresIn).startsNow.issuedNow
                             val token = Jwt.encode(JwtHeader(jwtAlgo, "JWT"), claim, jwtKey)
@@ -145,8 +140,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
 
                 (tweetText.lift(0)) match {
                     case (tweetText: Some[String]) => {
-                        DataManager.AddTweet(tweetText.get, userId.toInt)
-                        Created()
+                        val tweetId = DataManager.AddTweet(tweetText.get, userId.toInt)
+                        Created(tweetId)
                     }
                     case _ => BadRequest()
                 }
@@ -160,15 +155,10 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
       */
     get("/tweet/:id/?") {
         val id = params.getOrElse("id", halt(400))
-        if(DataManager.tweets.contains(id.toInt)) {
-            val sampleTweet = DataManager.tweets(id.toInt)
-            // This would convert case class to JSON. The same with lists - just pass it to write()
-            Ok(write(sampleTweet))
-        }
+        if(DataManager.tweets.contains(id.toInt))
+            Ok(write(DataManager.tweets(id.toInt)))
         else
             BadRequest()
-
-        // or BadRequest()
         
     }
     
@@ -185,15 +175,10 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
                 // Parse parseBody, edit tweet
                 val tweetText = (parsedBody \ "text").extract[String]
 
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-
-                    DataManager.EditTwit(tweetId.toInt, tweetText, userId.toInt)
+                if(DataManager.EditTweet(tweetId.toInt, tweetText, userId.toInt))
                     Ok()
-
-                }
                 else
                     BadRequest()
-
             }
         }
     }
@@ -207,12 +192,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400)).toInt
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-
-                    DataManager.RemoveTwit(tweetId.toInt, userId.toInt)
+                if(DataManager.RemoveTweet(tweetId.toInt, userId.toInt))
                     Ok()
-
-                }
                 else
                     BadRequest()
             }
@@ -228,13 +209,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val anotherUserid = params.getOrElse("id", halt(400))
-                if(DataManager.users.contains(userId.toInt)) {
-                    DataManager.users(userId.toInt).Subscribe(anotherUserid.toInt)
-                    Created()
-                }
-                else
-                    BadRequest()
-                
+                DataManager.users(userId.toInt).Subscribe(anotherUserid.toInt)
+                Created()
             }
         }
     }
@@ -248,13 +224,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val anotherUserid = params.getOrElse("id", halt(400))
-                if(DataManager.users.contains(userId.toInt)) {
-                    DataManager.users(userId.toInt).Unsubscribe(anotherUserid.toInt)
-                    Created()
-                }
-                else
-                    BadRequest()
-                
+                DataManager.users(userId.toInt).Unsubscribe(anotherUserid.toInt)
+                Created()
             }
         }
     }
@@ -263,14 +234,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
     get("/feed/?") {
         getAuthInfo(request.getHeader("Authorization")) match {
             case ar: ActionResult => ar
-            case (userId: BigInt, nickname: String, email: String) => {
-                if(DataManager.users.contains(userId.toInt)){
-                    Ok(write(DataManager.users(userId.toInt).GenerateFeed(10)))
-                }
-                else
-                    BadRequest()
-                
-            }
+            case (userId: BigInt, nickname: String, email: String) =>
+                Ok(write(DataManager.users(userId.toInt).GenerateFeed(10)))
         }
     }
     
@@ -280,9 +245,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
       */
     get("/feed/:id/?") {
         val id = params.getOrElse("id", halt(400))
-        if(DataManager.users.contains(id.toInt)){
+        if(DataManager.users.contains(id.toInt))
             Ok(write(DataManager.users(id.toInt).GenerateFeed(10)))
-        }
         else
             BadRequest()
     }
@@ -297,14 +261,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
 
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.users(userId.toInt).Retweet(tweetId.toInt)
-                    Ok()
-                }
-                else {
-                    BadRequest()
-                }
-                
+                DataManager.users(userId.toInt).Retweet(tweetId.toInt)
+                Ok()
             }
         }
     }
@@ -318,13 +276,10 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.users(userId.toInt).RemoveRetweet(tweetId.toInt)
+                if(DataManager.users(userId.toInt).RemoveRetweet(tweetId.toInt))
                     Ok()
-                }
-                else {
+                else
                     BadRequest()
-                }
             }
         }
     }
@@ -338,14 +293,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.AddLike(userId.toInt, tweetId.toInt)
-                    Ok()
-                }
-                else {
-                    BadRequest()
-                }
-                    
+                DataManager.AddLike(userId.toInt, tweetId.toInt)
+                Ok()
             }
         }
     }
@@ -359,13 +308,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.RemoveLike(userId.toInt, tweetId.toInt)
-                    Ok()
-                }
-                else {
-                    BadRequest()
-                }
+                DataManager.RemoveLike(userId.toInt, tweetId.toInt)
+                Ok()
             }
         }
     }
@@ -379,14 +323,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.AddDislike(userId.toInt, tweetId.toInt)
-                    Ok()
-                }
-                else {
-                    BadRequest()
-                }
-                
+                DataManager.AddDislike(userId.toInt, tweetId.toInt)
+                Ok()
             }
         }
     }
@@ -400,14 +338,8 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
             case ar: ActionResult => ar
             case (userId: BigInt, nickname: String, email: String) => {
                 val tweetId = params.getOrElse("id", halt(400))
-                if(DataManager.tweets.contains(tweetId.toInt)) {
-                    DataManager.RemoveDislike(userId.toInt, tweetId.toInt)
-                    Ok()
-                }
-                else {
-                    BadRequest()
-                }
-                
+                DataManager.RemoveDislike(userId.toInt, tweetId.toInt)
+                Ok()
             }
         }
     }

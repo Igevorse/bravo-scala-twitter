@@ -1,3 +1,4 @@
+// Credit: https://github.com/dholbrook/scala-password-hash
 package ru.innopolis.bravo
 
 import java.security.SecureRandom;

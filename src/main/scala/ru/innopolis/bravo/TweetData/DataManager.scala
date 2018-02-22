@@ -13,41 +13,39 @@ object DataManager {
     users.values.find(_.nickname == nickname)
   }
 
-  def AddUser(email:String, nickname:String, password:String): Option[Integer] = {
+  def AddUser(email:String, nickname:String, passwordHash:String): Option[Integer] = {
     if(NicknameExists(nickname) || EmailExists(email))
       return None
 
     val id = users.size
-    val user : User = new User(id, email, nickname, PasswordHash.createHash(password))
+    val user : User = new User(id, email, nickname, passwordHash)
     users += id -> user
 
     Some(id)
   }
 
-  def AddTweet(text:String, authorId:Int): Boolean = {
+  def AddTweet(text:String, authorId:Int): Integer = {
     val id = tweets.size
     val tweet : Tweet = new Tweet(id, text, authorId, DateTime.now(DateTimeZone.UTC).getMillis())
 
     users(authorId).tweetIDs += id
     tweets += id -> tweet
 
-    return true;
+    id
   }
-
-  def EditTwit(id: Int, text:String, authorId: Int) : Boolean = {
-    if (!tweets.contains(id) || tweets(id).authorId != authorId) {
+  
+  def EditTweet(id: Int, text:String, authorId: Int) : Boolean = {
+    if (!tweets.contains(id) || tweets(id).authorId != authorId)
        return false
-    }
 
     tweets(id).text = text
 
     true
   }
 
-  def RemoveTwit(tweetId: Int, authorId:Int) : Boolean = {
-    if (!tweets.contains(tweetId) || tweets(tweetId).authorId != authorId) {
+  def RemoveTweet(tweetId: Int, authorId:Int) : Boolean = {
+    if (!tweets.contains(tweetId) || tweets(tweetId).authorId != authorId)
       return false
-    }
 
     tweets(tweetId).usersLiked
       .foreach(RemoveLike(_, tweetId))
@@ -94,13 +92,11 @@ object DataManager {
 
   def NicknameExists(nick : String) : Boolean = {
     val nicknames = users.values.map(_.nickname)
-
     nicknames.exists(name => name == nick)
   }
 
   def EmailExists(email : String) : Boolean = {
     val emails = users.values.map(_.email)
-
     emails.exists(mail => mail == email)
   }
 

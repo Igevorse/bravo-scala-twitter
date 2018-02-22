@@ -24,7 +24,8 @@ class User(val id:Integer, var email:String, var nickname:String, val passwordHa
 
   def RemoveRetweet(id: Int) = {
     if(DataManager.tweets.contains(id))
-      tweetIDs -= id
+        tweetIDs -= id
+    DataManager.tweets.contains(id)
   }
 
   def GenerateFeed(size : Int) : List[Tweet] = {
