@@ -13,15 +13,15 @@ object DataManager {
     users.values.find(_.nickname == nickname)
   }
 
-  def AddUser(email:String, nickname:String, password:String): Boolean = {
+  def AddUser(email:String, nickname:String, password:String): Option[Integer] = {
     if(NicknameExists(nickname) || EmailExists(email))
-      return false
+      return None
 
     val id = users.size
-    val user : User = new User(id, email, nickname, password)
+    val user : User = new User(id, email, nickname, PasswordHash.createHash(password))
     users += id -> user
 
-    true
+    Some(id)
   }
 
   def AddTweet(text:String, authorId:Int): Boolean = {

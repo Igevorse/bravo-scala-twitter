@@ -63,12 +63,13 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
         val password = parsedBody \ "password" \\ classOf[JString]
         (email.lift(0), nickname.lift(0), password.lift(0)) match {
             case (email: Some[String], nickname: Some[String], password: Some[String]) if !password.get.isEmpty() => {
-
-//                val user = new User(generateNewId(), email.get, nickname.get, password.get)
-                if(DataManager.AddUser(email.get, nickname.get, password.get)) {
-                    println(new String(s"Added new user '${nickname.get}' with password '${password.get}'"))
+                DataManager.AddUser(email.get, nickname.get, PasswordHash.createHash(password.get)) match {
+                    case newUserId: Some[Integer] => {
+                        println(new String(s"Added new user '${nickname.get}' with password '${password.get}'"))
+                        Created(newUserId)
+                    }
+                    case _ => BadRequest()
                 }
-                Created()
             }
             case _ => BadRequest()
         }
@@ -88,7 +89,7 @@ class BravoTwitterServlet extends ScalatraServlet with MethodOverride with Jacks
                 DataManager.getUserByNickname(nickname.get) match {
                     case Some(user) => {
                         // Generate a JWT token
-                        if(user.password == password.get) {
+                        if(PasswordHash.validatePassword(user.passwordHash, PasswordHash.createHash(password.get))) {
                             val claimText = ("nickname" -> user.nickname) ~ ("email" -> user.email) ~ ("id" -> scala.Int.unbox(new java.lang.Integer(user.id)))
                             val claim = JwtClaim(compact(render(claimText))).by(jwtIssuedBy).expiresIn(jwtExpiresIn).startsNow.issuedNow
                             val token = Jwt.encode(JwtHeader(jwtAlgo, "JWT"), claim, jwtKey)
