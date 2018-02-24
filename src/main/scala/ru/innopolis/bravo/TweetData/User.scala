@@ -37,5 +37,14 @@ class User(val id:Integer, var email:String, var nickname:String, val passwordHa
       .reverse
       .take(size)
   }
+  
+  def GenerateOthersFeed(size : Int) : List[Tweet] = {
+    tweetIDs
+      .map(DataManager.tweets)
+      .toList
+      .sortBy(_.submissionTime)
+      .reverse
+      .take(size)
+  }
 
 }

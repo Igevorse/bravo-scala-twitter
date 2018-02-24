@@ -58,36 +58,41 @@ object DataManager {
     true
   }
 
-  def AddLike(userId: Int, tweetId: Int) = {
+  def AddLike(userId: Int, tweetId: Int) : Integer = {
     if (users.contains(userId) && tweets.contains(tweetId)) {
-      if (users(userId).disliked.contains(tweetId))
+      if (users(userId).disliked.contains(tweetId)) {
         RemoveDislike(userId, tweetId)
+        }
       users(userId).liked += tweetId
       tweets(tweetId).usersLiked += userId
     }
+    tweets(tweetId).usersLiked.size
   }
 
-  def RemoveLike(userId: Int, tweetId: Int) = {
+  def RemoveLike(userId: Int, tweetId: Int) : Integer = {
     if (users.contains(userId) && tweets.contains(tweetId)) {
       users(userId).liked -= tweetId
       tweets(tweetId).usersLiked -= userId
     }
+    tweets(tweetId).usersLiked.size
   }
 
-  def AddDislike(userId: Int, tweetId: Int) = {
+  def AddDislike(userId: Int, tweetId: Int) : Integer= {
     if (users.contains(userId) && tweets.contains(tweetId)) {
       if (users(userId).liked.contains(tweetId))
         RemoveLike(userId, tweetId)
       users(userId).disliked += tweetId
       tweets(tweetId).usersDisliked += userId
     }
+    tweets(tweetId).usersDisliked.size
   }
 
-  def RemoveDislike(userId: Int, tweetId: Int) = {
+  def RemoveDislike(userId: Int, tweetId: Int) : Integer = {
     if (users.contains(userId) && tweets.contains(tweetId)) {
       users(userId).disliked -= tweetId
       tweets(tweetId).usersDisliked -= userId
     }
+    tweets(tweetId).usersDisliked.size
   }
 
   def NicknameExists(nick : String) : Boolean = {
